@@ -26,3 +26,13 @@ export function getJobs(maxAge = config.cacheSeconds) {
   chain = run.then(() => {}, () => {});
   return run;
 }
+
+export function refreshJobs() {
+  const run = chain.then(async () => {
+    cache.jobs = await fetcher();
+    cache.t = Date.now() / 1000;
+    return cache.jobs;
+  });
+  chain = run.then(() => {}, () => {});
+  return run;
+}

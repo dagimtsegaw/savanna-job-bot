@@ -7,7 +7,8 @@ import { HELP, NLLB_CODES, SOURCES } from './data/catalog.js';
 import { openDatabase, useDatabase } from './db.js';
 import { registerCallbacks } from './handlers/callbacks.js';
 import { registerCommands } from './handlers/commands.js';
-import { broadcast } from './services/broadcast.js';
+import { keepWebServiceAwake, startHealthServer } from './health.js';
+import { ensureFirefox } from './services/browsers.js';
 import { fetchAll } from './services/scraper.js';
 import { tr } from './services/translate.js';
 import { safeError } from './utils/safeLog.js';
@@ -67,36 +68,6 @@ export async function runWarmup() {
   }
 }
 
-let broadcasting = false;
-
-async function runBroadcast(bot) {
-  if (broadcasting) {
-    return;
-  }
-  broadcasting = true;
-  try {
-    await broadcast(bot.telegram);
-  } catch (error) {
-    console.error(`[jobbot] broadcast failed: ${safeError(error)}`);
-  } finally {
-    broadcasting = false;
-  }
-}
-
-function startSchedule(bot) {
-  let interval;
-  const first = setTimeout(() => {
-    runBroadcast(bot);
-    interval = setInterval(() => runBroadcast(bot), config.intervalMs);
-  }, config.firstBroadcastMs);
-  return () => {
-    clearTimeout(first);
-    if (interval) {
-      clearInterval(interval);
-    }
-  };
-}
-
 async function publishCommands(bot) {
   try {
     await bot.telegram.setMyCommands(HELP.map(([command, description]) => ({
@@ -134,11 +105,14 @@ if (isDirectRun()) {
       process.exit(1);
     }
   } else {
+    startHealthServer();
+    keepWebServiceAwake();
+    ensureFirefox().catch((error) => {
+      console.error(`[jobbot] Could not install Firefox: ${safeError(error)}`);
+    });
     validateStartupConfig();
     const bot = createBot();
-    const stopSchedule = startSchedule(bot);
     const shutdown = (signal) => {
-      stopSchedule();
       try {
         bot.stop(signal);
       } catch (error) {
@@ -150,7 +124,7 @@ if (isDirectRun()) {
     process.once('SIGTERM', () => shutdown('SIGTERM'));
     try {
       const me = await bot.telegram.getMe();
-      console.log(`[jobbot] Connected as @${me.username}. Job alerts run every 2 hours.`);
+      console.log(`[jobbot] Connected as @${me.username}. Jobs are fetched on request.`);
       await publishCommands(bot);
       await bot.launch({ dropPendingUpdates: false });
     } catch (error) {

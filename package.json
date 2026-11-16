@@ -2,13 +2,13 @@
   "name": "savanna-job-bot",
   "version": "4.0.0",
   "private": true,
-  "description": "Ethiopian jobs Telegram bot. Scrapes job boards and sends multilingual alerts with accessibility modes.",
+  "description": "Ethiopian jobs Telegram bot. Scrapes job boards on demand and provides multilingual accessible listings.",
   "type": "module",
   "main": "src/bot.js",
   "scripts": {
     "start": "node --experimental-sqlite --disable-warning=ExperimentalWarning src/bot.js",
     "dev": "node --experimental-sqlite --disable-warning=ExperimentalWarning --watch src/bot.js",
-    "test": "node --experimental-sqlite --disable-warning=ExperimentalWarning --test tests/db.test.js tests/flows.test.js tests/render.test.js tests/scraper.test.js tests/speech.test.js tests/translate.test.js",
+    "test": "node --experimental-sqlite --disable-warning=ExperimentalWarning --test tests/db.test.js tests/flows.test.js tests/render.test.js tests/scraper.test.js tests/speech.test.js tests/translate.test.js tests/health.test.js tests/browsers.test.js",
     "scrape": "node --experimental-sqlite --disable-warning=ExperimentalWarning src/bot.js --test"
   },
   "engines": {
@@ -17,7 +17,7 @@
   "dependencies": {
     "dotenv": "^16.6.1",
     "msedge-tts": "^2.1.1",
-    "playwright": "^1.49.1",
+    "playwright": "1.65.1",
     "telegraf": "^4.16.3"
   }
 }

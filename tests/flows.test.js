@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
 import { CHOOSE_TEXT, P_DONE, P_MODE } from '../src/data/catalog.js';
 import { getDatabase, getUser, openDatabase, setField, unseenJobs, useDatabase } from '../src/db.js';
-import { handleCategoryChoice, handleLanguageChoice, handleModeChoice } from '../src/handlers/callbacks.js';
+import {
+  handleCategoryChoice,
+  handleLanguageChoice,
+  handleModeChoice,
+  handleRefresh,
+} from '../src/handlers/callbacks.js';
 import { handleHelp, handleJobs, handleLinkedin, handleStart, handleStop } from '../src/handlers/commands.js';
 import { linkedinLines } from '../src/keyboards/keyboards.js';
 import { broadcast } from '../src/services/broadcast.js';
@@ -131,6 +136,25 @@ test('jobs without a category filter include every current listing', async () =>
   assert.match(text, /Senior Software Engineer/);
   assert.match(text, /Nurse/);
   assert.equal(ctx.sent.some((message) => message.kind === 'audio'), false);
+});
+
+test('the inline refresh button forces a new scrape', async () => {
+  let calls = 0;
+  useJobFetcher(async () => {
+    calls += 1;
+    return sampleJobs;
+  });
+  const ctx = createCtx();
+  await handleJobs(ctx);
+  const refreshButton = ctx.sent.at(-1).extra.reply_markup.inline_keyboard.flat()[0];
+  assert.equal(refreshButton.text, 'Refresh');
+  assert.equal(refreshButton.callback_data, 'jobs:refresh');
+  assert.equal(calls, 1);
+
+  ctx.callbackQuery = { data: 'jobs:refresh' };
+  await handleRefresh(ctx);
+  assert.equal(ctx.acked, true);
+  assert.equal(calls, 2);
 });
 
 test('an empty scrape tells the user to wait', async () => {

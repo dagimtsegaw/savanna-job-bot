@@ -1,4 +1,5 @@
 node_modules/
+.playwright/
 .env
 ./bot.db
 .env.local

@@ -145,7 +145,7 @@ export const EDGE_VOICES = {
 
 export const P_MODE = 'How should I send you jobs? Pick the option that works best for you.';
 export const P_CATS = 'Choose the job types you want (tap to select), then press Done. If you choose nothing, you get all jobs.';
-export const P_DONE = 'All set! New jobs will arrive about every 2 hours. Type /help to see all commands.';
+export const P_DONE = 'All set! Use /jobs or tap Refresh to check for new listings. Type /help to see all commands.';
 
 export const HELP = [
   ['/start', 'Set up the bot'],

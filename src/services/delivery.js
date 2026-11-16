@@ -1,7 +1,8 @@
 import { config } from '../config.js';
 import { getDatabase, getUser } from '../db.js';
+import { refreshKeyboard } from '../keyboards/keyboards.js';
 import { matches } from './scraper.js';
-import { getJobs } from './jobs.js';
+import { getJobs, refreshJobs } from './jobs.js';
 import { makeVoice as defaultMakeVoice } from './speech.js';
 import { renderJobs } from './render.js';
 import { tr } from './translate.js';
@@ -13,10 +14,13 @@ export function useVoiceMaker(fn) {
   makeVoice = fn;
 }
 
-export async function sendJobs(telegram, chatId, user, jobs, header, vcache = null) {
+export async function sendJobs(telegram, chatId, user, jobs, header, vcache = null, replyMarkup = null) {
   const messages = await renderJobs(jobs, user.lang, user.mode, header);
-  for (const text of messages) {
-    await telegram.sendMessage(chatId, text, previewOff);
+  for (let index = 0; index < messages.length; index += 1) {
+    const extra = index === messages.length - 1 && replyMarkup
+      ? { ...previewOff, reply_markup: replyMarkup }
+      : previewOff;
+    await telegram.sendMessage(chatId, messages[index], extra);
   }
   if (user.mode !== 'blind') {
     return;
@@ -36,19 +40,23 @@ export async function sendJobs(telegram, chatId, user, jobs, header, vcache = nu
   }
 }
 
-export async function sendLatest(telegram, chatId) {
+export async function sendLatest(telegram, chatId, forceRefresh = false) {
   const user = getUser(getDatabase(), chatId);
   if (!user) {
     return;
   }
   await telegram.sendChatAction(chatId, 'typing');
-  const jobs = (await getJobs()).filter((job) => matches(job, user.cats)).slice(0, config.instantCount);
+  const jobs = (await (forceRefresh ? refreshJobs() : getJobs()))
+    .filter((job) => matches(job, user.cats))
+    .slice(0, config.instantCount);
+  const keyboard = await refreshKeyboard(user.lang);
   if (jobs.length === 0) {
     await telegram.sendMessage(
       chatId,
-      await tr('No matching jobs right now. I will message you when new ones appear.', user.lang),
+      await tr('No matching jobs right now. Tap Refresh or use /jobs to check again later.', user.lang),
+      { ...previewOff, reply_markup: keyboard.reply_markup },
     );
     return;
   }
-  await sendJobs(telegram, chatId, user, jobs, 'Latest jobs right now');
+  await sendJobs(telegram, chatId, user, jobs, 'Latest jobs right now', null, keyboard.reply_markup);
 }

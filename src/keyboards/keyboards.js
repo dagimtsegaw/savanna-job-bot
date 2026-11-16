@@ -41,6 +41,12 @@ export async function catKeyboard(lang, selected) {
   return Markup.inlineKeyboard(rows);
 }
 
+export async function refreshKeyboard(lang) {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback(await tr('Refresh', lang), 'jobs:refresh')],
+  ]);
+}
+
 export function quotePlus(value) {
   return encodeURIComponent(value).replace(/%20/g, '+');
 }

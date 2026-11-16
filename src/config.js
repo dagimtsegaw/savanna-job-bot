@@ -12,8 +12,6 @@ function trimmed(name) {
 
 export const config = {
   packageRoot,
-  intervalMs: 2 * 60 * 60 * 1000,
-  firstBroadcastMs: 30 * 1000,
   maxPerRun: 12,
   instantCount: 5,
   cacheSeconds: 600,

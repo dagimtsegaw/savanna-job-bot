@@ -61,8 +61,14 @@ export async function handleCategoryChoice(ctx) {
   await ctx.editMessageReplyMarkup(markup.reply_markup);
 }
 
+export async function handleRefresh(ctx) {
+  await ctx.answerCbQuery();
+  await sendLatest(ctx.telegram, ctx.chat.id, true);
+}
+
 export function registerCallbacks(bot) {
   bot.action(/^lang:/, handleLanguageChoice);
   bot.action(/^mode:/, handleModeChoice);
   bot.action(/^cat:/, handleCategoryChoice);
+  bot.action('jobs:refresh', handleRefresh);
 }

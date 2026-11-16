@@ -7,6 +7,7 @@ import {
   UA,
 } from '../data/catalog.js';
 import { safeError } from '../utils/safeLog.js';
+import { configureBrowserPath, ensureFirefox } from './browsers.js';
 
 export function slugToTitle(slug) {
   const withoutId = String(slug || '').replace(/^(?=[A-Za-z0-9]*[A-Z0-9])[A-Za-z0-9]{10}-/, '');
@@ -90,10 +91,25 @@ function hyphenCount(value) {
   return (String(value).match(/-/g) || []).length;
 }
 
+async function launchFirefox(firefox) {
+  try {
+    return await firefox.launch({ headless: true });
+  } catch (error) {
+    if (process.env.RENDER === 'true') {
+      console.error(
+        '[jobbot] Firefox did not start. In the Render dashboard, set this service runtime to Docker. The Dockerfile uses the Playwright image, which includes Firefox and the libraries it needs.',
+      );
+    }
+    throw error;
+  }
+}
+
 export async function fetchAll(sources = SOURCES) {
+  await ensureFirefox();
+  configureBrowserPath();
   const { firefox } = await import('playwright');
   const all = [];
-  const browser = await firefox.launch();
+  const browser = await launchFirefox(firefox);
   try {
     const context = await browser.newContext({ userAgent: UA });
     for (const src of sources) {
