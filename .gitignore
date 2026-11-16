@@ -1,5 +1,6 @@
 node_modules/
 .env
+./bot.db
 .env.local
 .env.*.local
 npm-debug.log*
