@@ -2,6 +2,18 @@ import { Markup } from 'telegraf';
 import { CATEGORIES, LANGS, LINKEDIN_KW, MODES } from '../data/catalog.js';
 import { tr } from '../services/translate.js';
 
+export function buttonText(text) {
+  const value = String(text);
+  if (value.length <= 64) {
+    return value;
+  }
+  let end = 63;
+  if (value.charCodeAt(end - 1) >= 0xD800 && value.charCodeAt(end - 1) <= 0xDBFF) {
+    end -= 1;
+  }
+  return `${value.slice(0, end)}…`;
+}
+
 export function languageKeyboard() {
   const buttons = Object.entries(LANGS).map(([code, lang]) => (
     Markup.button.callback(`${lang.flag} ${lang.name}`, `lang:${code}`)
@@ -16,7 +28,7 @@ export function languageKeyboard() {
 export async function modeKeyboard(lang) {
   const rows = [];
   for (const [key, mode] of Object.entries(MODES)) {
-    rows.push([Markup.button.callback(`${mode.emoji} ${await tr(mode.label, lang)}`, `mode:${key}`)]);
+    rows.push([Markup.button.callback(buttonText(`${mode.emoji} ${await tr(mode.label, lang)}`), `mode:${key}`)]);
   }
   return Markup.inlineKeyboard(rows);
 }
@@ -26,7 +38,7 @@ export async function catKeyboard(lang, selected) {
   for (const [key, category] of Object.entries(CATEGORIES)) {
     const mark = selected.includes(key) ? '✅ ' : '';
     buttons.push(Markup.button.callback(
-      `${mark}${category.emoji} ${await tr(category.label, lang)}`,
+      buttonText(`${mark}${category.emoji} ${await tr(category.label, lang)}`),
       `cat:${key}`,
     ));
   }
@@ -35,15 +47,15 @@ export async function catKeyboard(lang, selected) {
     rows.push(buttons.slice(index, index + 2));
   }
   rows.push([
-    Markup.button.callback(`🌐 ${await tr('All jobs', lang)}`, 'cat:all'),
-    Markup.button.callback(`✔️ ${await tr('Done', lang)}`, 'cat:done'),
+    Markup.button.callback(buttonText(`🌐 ${await tr('All jobs', lang)}`), 'cat:all'),
+    Markup.button.callback(buttonText(`✔️ ${await tr('Done', lang)}`), 'cat:done'),
   ]);
   return Markup.inlineKeyboard(rows);
 }
 
 export async function refreshKeyboard(lang) {
   return Markup.inlineKeyboard([
-    [Markup.button.callback(await tr('Refresh', lang), 'jobs:refresh')],
+    [Markup.button.callback(buttonText(await tr('Refresh', lang)), 'jobs:refresh')],
   ]);
 }
 

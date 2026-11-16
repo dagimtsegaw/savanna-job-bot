@@ -44,7 +44,7 @@ export function validateStartupConfig() {
   }
   if (!config.addisKey) {
     console.warn(
-      '[jobbot] ADDIS_API_KEY is not set. English and Arabic stay on Edge. Amharic and Somali fall back to Edge. Oromo and Tigrinya are read in English.',
+      '[jobbot] ADDIS_API_KEY is not set. English and Arabic stay on Edge. Amharic and Somali fall back to Edge. Oromo and Tigrinya are read in English. Amharic, Afaan Oromo, and Tigrinya translations stay on Google Translate.',
     );
   }
 }

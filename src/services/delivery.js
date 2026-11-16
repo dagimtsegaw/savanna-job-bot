@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { getDatabase, getUser } from '../db.js';
 import { refreshKeyboard } from '../keyboards/keyboards.js';
+import { safeError } from '../utils/safeLog.js';
 import { matches } from './scraper.js';
 import { getJobs, refreshJobs } from './jobs.js';
 import { makeVoice as defaultMakeVoice } from './speech.js';
@@ -46,7 +47,13 @@ export async function sendLatest(telegram, chatId, forceRefresh = false) {
     return;
   }
   await telegram.sendChatAction(chatId, 'typing');
-  const jobs = (await (forceRefresh ? refreshJobs() : getJobs()))
+  let scraped = [];
+  try {
+    scraped = await (forceRefresh ? refreshJobs() : getJobs());
+  } catch (error) {
+    console.warn(`[jobbot] job fetch failed: ${safeError(error)}`);
+  }
+  const jobs = (Array.isArray(scraped) ? scraped : [])
     .filter((job) => matches(job, user.cats))
     .slice(0, config.instantCount);
   const keyboard = await refreshKeyboard(user.lang);

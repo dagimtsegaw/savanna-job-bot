@@ -4,8 +4,10 @@ import { getDatabase } from '../db.js';
 import { safeError } from '../utils/safeLog.js';
 import { sleep } from '../utils/sleep.js';
 
+const ADDIS_TRANSLATE = new Set(['am', 'om', 'ti']);
 const nllbState = { ok: null, pipe: null };
 let googleTail = Promise.resolve();
+let announcedAddis = false;
 
 export function resolveNllbModel(name = config.nllbModel) {
   if (name === 'facebook/nllb-200-distilled-600M') {
@@ -17,6 +19,7 @@ export function resolveNllbModel(name = config.nllbModel) {
 export function resetTranslationState() {
   nllbState.ok = null;
   nllbState.pipe = null;
+  announcedAddis = false;
 }
 
 async function defaultNllb(text, lang) {
@@ -57,6 +60,42 @@ async function loadNllb() {
   return nllbState.ok;
 }
 
+function addisRoot(value) {
+  let root = String(value || 'https://api.addisassistant.com').trim().replace(/\/$/, '');
+  if (root.endsWith('/api/v1')) {
+    root = root.slice(0, -'/api/v1'.length);
+  }
+  return root || 'https://api.addisassistant.com';
+}
+
+export async function addisTranslate(text, lang, options = {}) {
+  const key = options.key ?? config.addisKey;
+  if (!key || !ADDIS_TRANSLATE.has(lang) || !text) {
+    throw new Error('addis translate off');
+  }
+  const fetchImpl = options.fetchImpl || fetch;
+  const base = addisRoot(options.base ?? config.addisBase);
+  const response = await fetchImpl(`${base}/api/v1/translate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': key },
+    body: JSON.stringify({
+      text: String(text).slice(0, 5000),
+      source_language: 'en',
+      target_language: lang,
+    }),
+    signal: AbortSignal.timeout(options.timeoutMs || 20000),
+  });
+  if (!response.ok) {
+    throw new Error(`addis translate ${response.status}`);
+  }
+  const data = await response.json();
+  const out = data?.data?.translation || data?.data?.text || data?.translation || data?.text || '';
+  if (!out || typeof out !== 'string') {
+    throw new Error('empty addis translation');
+  }
+  return out.trim();
+}
+
 export async function googleTranslate(text, lang) {
   const url = new URL('https://translate.googleapis.com/translate_a/single');
   url.searchParams.set('client', 'gtx');
@@ -82,6 +121,7 @@ export async function googleTranslate(text, lang) {
 export const engines = {
   nllbTranslate: defaultNllb,
   googleTranslate,
+  addisTranslate: (text, lang) => addisTranslate(text, lang),
 };
 
 export function setTranslators(next) {
@@ -91,6 +131,9 @@ export function setTranslators(next) {
   if (next.googleTranslate) {
     engines.googleTranslate = next.googleTranslate;
   }
+  if (next.addisTranslate) {
+    engines.addisTranslate = next.addisTranslate;
+  }
 }
 
 function withGoogleLock(fn) {
@@ -99,15 +142,23 @@ function withGoogleLock(fn) {
   return run;
 }
 
-async function googleWithRetry(text, lang) {
+function rateLimited(error) {
+  return /\b429\b/.test(String(error?.message || ''));
+}
+
+async function googleWithRetry(text, lang, attempts) {
   return withGoogleLock(async () => {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
       try {
         const out = await engines.googleTranslate(text, lang);
         await sleep(350);
         return out;
       } catch (error) {
         console.warn(`[jobbot] google translate ${lang} failed (try ${attempt + 1}): ${safeError(error)}`);
+        const giveUp = rateLimited(error) || attempt + 1 >= attempts;
+        if (giveUp) {
+          return null;
+        }
         await sleep(2000 * (attempt + 1));
       }
     }
@@ -135,7 +186,21 @@ export async function tr(text, lang) {
     }
   }
   if (!out) {
-    out = await googleWithRetry(text, lang);
+    const attempts = ADDIS_TRANSLATE.has(lang) ? 1 : 3;
+    out = await googleWithRetry(text, lang, attempts);
+  }
+  if (!out && ADDIS_TRANSLATE.has(lang) && config.addisKey) {
+    if (!announcedAddis) {
+      announcedAddis = true;
+      console.info('[jobbot] Google Translate failed. Using Addis AI.');
+    }
+    try {
+      out = await engines.addisTranslate(text, lang);
+    } catch (error) {
+      if (error?.message !== 'addis translate off') {
+        console.warn(`[jobbot] addis translate ${lang} failed: ${safeError(error)}`);
+      }
+    }
   }
   if (out) {
     db.prepare('INSERT OR REPLACE INTO tcache (lang, src, out) VALUES (?, ?, ?)').run(lang, text, out);

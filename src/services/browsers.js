@@ -7,6 +7,10 @@ export function usesBundledBrowsers() {
     || process.env.PLAYWRIGHT_BROWSERS_PATH === '/ms-playwright';
 }
 
+export function browserRuntimeAvailable() {
+  return process.env.RENDER !== 'true' || usesBundledBrowsers();
+}
+
 export function configureBrowserPath() {
   if (!process.env.PLAYWRIGHT_BROWSERS_PATH && process.env.RENDER === 'true') {
     process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(config.packageRoot, '.playwright');

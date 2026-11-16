@@ -9,7 +9,7 @@ import {
   handleRefresh,
 } from '../src/handlers/callbacks.js';
 import { handleHelp, handleJobs, handleLinkedin, handleStart, handleStop } from '../src/handlers/commands.js';
-import { linkedinLines } from '../src/keyboards/keyboards.js';
+import { buttonText, linkedinLines } from '../src/keyboards/keyboards.js';
 import { broadcast } from '../src/services/broadcast.js';
 import { useVoiceMaker } from '../src/services/delivery.js';
 import { getJobs, resetJobCache, useJobFetcher } from '../src/services/jobs.js';
@@ -155,6 +155,24 @@ test('the inline refresh button forces a new scrape', async () => {
   await handleRefresh(ctx);
   assert.equal(ctx.acked, true);
   assert.equal(calls, 2);
+});
+
+test('a failed scrape still tells the user to check again', async () => {
+  useJobFetcher(async () => {
+    throw new Error('firefox missing');
+  });
+  resetJobCache();
+  const ctx = createCtx({ chat: { id: 9 } });
+  await handleJobs(ctx);
+  assert.match(ctx.sent[0].text, /No matching jobs right now/);
+});
+
+test('button labels stay inside Telegram limit', () => {
+  const long = `👂 ${'የመስማት ችሎታ '.repeat(12)}`;
+  const label = buttonText(long);
+  assert.ok(label.length <= 64);
+  assert.equal(label.endsWith('…'), true);
+  assert.equal(buttonText('Refresh'), 'Refresh');
 });
 
 test('an empty scrape tells the user to wait', async () => {

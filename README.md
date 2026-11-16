@@ -21,7 +21,7 @@ Voice uses Addis Voices for Amharic, Afaan Oromo, Tigrinya, and Somali. English 
 - Playwright Firefox for the job pages
 - `node:sqlite` for `bot.db`
 - `dotenv` for environment variables
-- Google Translate, with optional offline NLLB when `@huggingface/transformers` is installed
+- Google Translate, then Addis AI for Amharic, Afaan Oromo, and Tigrinya when Google fails. Optional offline NLLB when `@huggingface/transformers` is installed
 
 ## Create a bot with BotFather
 
@@ -53,7 +53,7 @@ The token is not written in source code. `.env` is listed in `.gitignore`.
 
 `ADDIS_API_KEY` turns on Addis Voices. Leave it empty to use the Edge fallback described above.
 
-`TRANSLATOR=auto` uses offline NLLB when the optional package is installed, then Google Translate. `TRANSLATOR=google` skips NLLB. Translations are stored in `bot.db`.
+`TRANSLATOR=auto` uses offline NLLB when the optional package is installed, then Google Translate. `TRANSLATOR=google` skips NLLB. If Google fails, Amharic, Afaan Oromo, and Tigrinya are translated with Addis AI. That needs `ADDIS_API_KEY` on the machine that runs the bot, including the Render service. Translations are stored in `bot.db`.
 
 ## Install and run
 
@@ -112,7 +112,7 @@ On the service that produced this log:
 2. In the Render dashboard, open the service, then Settings, and set the runtime to Docker. Render builds the `Dockerfile`. Leave the start command as `npm start`.
 3. Confirm `BOT_TOKEN` is set, and deploy again.
 
-Until that runtime change, a native Node deploy downloads Firefox into `.playwright` when the process starts. If Firefox still cannot start, the log says so. The Docker runtime is the fix, because the native image does not include Firefox's libraries.
+A native Node deploy cannot start Firefox. The bot then reads the listing pages directly, including the jobs EthioJobs and GeezJobs embed in the page. Set the runtime to Docker when you want the browser scrape as well.
 
 A free web service sleeps after about 15 minutes without an incoming request. Long polling does not create one. When Render sets `RENDER_EXTERNAL_URL`, the process requests that URL every 10 minutes so the service stays awake.
 

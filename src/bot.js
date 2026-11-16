@@ -8,7 +8,7 @@ import { openDatabase, useDatabase } from './db.js';
 import { registerCallbacks } from './handlers/callbacks.js';
 import { registerCommands } from './handlers/commands.js';
 import { keepWebServiceAwake, startHealthServer } from './health.js';
-import { ensureFirefox } from './services/browsers.js';
+import { browserRuntimeAvailable, ensureFirefox } from './services/browsers.js';
 import { fetchAll } from './services/scraper.js';
 import { tr } from './services/translate.js';
 import { safeError } from './utils/safeLog.js';
@@ -107,9 +107,13 @@ if (isDirectRun()) {
   } else {
     startHealthServer();
     keepWebServiceAwake();
-    ensureFirefox().catch((error) => {
-      console.error(`[jobbot] Could not install Firefox: ${safeError(error)}`);
-    });
+    if (browserRuntimeAvailable()) {
+      ensureFirefox().catch((error) => {
+        console.error(`[jobbot] Could not install Firefox: ${safeError(error)}`);
+      });
+    } else {
+      console.info('[jobbot] Firefox is not in this runtime. Job pages will be read directly.');
+    }
     validateStartupConfig();
     const bot = createBot();
     const shutdown = (signal) => {
